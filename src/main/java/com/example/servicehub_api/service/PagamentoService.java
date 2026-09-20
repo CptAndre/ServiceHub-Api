@@ -4,7 +4,6 @@ import com.example.servicehub_api.model.Pagamento;
 import com.example.servicehub_api.repository.PagamentoRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
-import com.example.servicehub_api.exception.ResourceNotFoundException;
 
 @Service
 public class PagamentoService {

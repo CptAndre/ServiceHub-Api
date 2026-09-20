@@ -13,8 +13,12 @@ public class Contrato {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "descricao_moveis")
     private String descricaoMoveis;
+
+    @Column(name = "valor_total")
     private BigDecimal valorTotal;
+
     private String status = "AGENDADO"; // Valor padrão
 
     // Relacionamento com Cliente

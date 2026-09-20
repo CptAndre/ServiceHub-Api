@@ -14,7 +14,10 @@ public class Pagamento {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "valor_pago")
     private BigDecimal valorPago;
+
+    @Column(name = "metodo_pagamento")
     private String metodoPagamento; // Ex: PIX, CARTAO, DINHEIRO
 
     private LocalDateTime data = LocalDateTime.now();

@@ -9,15 +9,29 @@ API REST para gerenciar clientes, montadores, contratos, avaliações e pagament
 
 ## Configuração
 
-Defina as variáveis de ambiente usadas pela aplicação:
+Crie o banco de dados `servicehub` no PostgreSQL antes de iniciar a aplicação:
+
+```sql
+CREATE DATABASE servicehub;
+```
+
+Configure as variáveis de ambiente usando o usuário e a senha definidos na instalação local do PostgreSQL. A senha abaixo é apenas um exemplo e deve ser substituída pela senha do PostgreSQL da sua máquina:
 
 ```text
 DB_URL=jdbc:postgresql://localhost:5432/servicehub
 DB_USERNAME=postgres
-DB_PASSWORD=sua-senha
+DB_PASSWORD=sua-senha-do-postgresql
 ```
 
-O banco `servicehub` deve existir antes de iniciar a aplicação. As migrações do Flyway são executadas automaticamente.
+No Windows PowerShell, as variáveis podem ser configuradas para a sessão atual com:
+
+```powershell
+$env:DB_URL = "jdbc:postgresql://localhost:5432/servicehub"
+$env:DB_USERNAME = "postgres"
+$env:DB_PASSWORD = "sua-senha-do-postgresql"
+```
+
+Substitua `sua-senha-do-postgresql` pela senha criada para o usuário `postgres` na sua instalação. Não informe nem grave senhas reais no repositório. As migrações do Flyway são executadas automaticamente.
 
 ## Executar
 
@@ -76,6 +90,3 @@ src/main/java/com/example/servicehub_api
 - A execução dos testes depende de uma instalação configurada do Java 21.
 - O ambiente atual não possui `JAVA_HOME` configurado; configure essa variável antes de executar `.\mvnw.cmd test`.
 
-### Controle de versão
-
-O repositório Git foi inicializado na pasta `servicehub-api`. Os diretórios `target/` e `.idea/`, além de configurações locais e arquivos `.env`, estão excluídos pelo `.gitignore`. Antes do primeiro push, ainda é necessário configurar o remote, criar o commit inicial e enviar a branch para o GitHub.
