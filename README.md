@@ -41,7 +41,7 @@ No Windows:
 .\mvnw.cmd spring-boot:run
 ```
 
-A documentação da API fica disponível em `http://localhost:8080/docs`.
+A documentação da API fica disponível em `http://localhost:8080/index.html`.
 
 ## Status técnico do projeto
 
@@ -89,4 +89,3 @@ src/main/java/com/example/servicehub_api
 - O arquivo `pom.xml` e as migrações SQL foram verificados.
 - A execução dos testes depende de uma instalação configurada do Java 21.
 - O ambiente atual não possui `JAVA_HOME` configurado; configure essa variável antes de executar `.\mvnw.cmd test`.
-
