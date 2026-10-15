@@ -1,18 +1,16 @@
 package com.example.servicehub_api.controller;
 
-import com.example.servicehub_api.model.Pagamento;
+import com.example.servicehub_api.dto.PagamentoRequestDTO;
+import com.example.servicehub_api.dto.PagamentoResponseDTO;
 import com.example.servicehub_api.service.PagamentoService;
+import com.example.servicehub_api.util.Pagination;
+import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-
-import java.util.List;
 
 @RestController
-@Tag(name = "5. Pagamentos", description = "Endpoints para registro de transações financeiras")
 public class PagamentoController {
 
     private final PagamentoService pagamentoService;
@@ -23,22 +21,16 @@ public class PagamentoController {
 
     @PostMapping("/api/pagamentos")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Registrar pagamento", description = "Registra um novo pagamento vinculado a um contrato de serviço.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Pagamento registrado com sucesso"),
-            @ApiResponse(responseCode = "400", description = "Dados do pagamento inválidos ou contrato inexistente")
-    })
-    public Pagamento criar(@RequestBody Pagamento pagamento) {
-        return pagamentoService.salvar(pagamento);
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public PagamentoResponseDTO criar(@Valid @RequestBody PagamentoRequestDTO dto) {
+        return pagamentoService.salvar(dto);
     }
 
-    // Endpoint aninhado documentado no seu diagrama
     @GetMapping("/api/contratos/{contratoId}/pagamentos")
-    @Operation(summary = "Listar pagamentos do contrato", description = "Retorna todo o histórico de pagamentos atrelados a um contrato específico.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Lista de pagamentos retornada com sucesso")
-    })
-    public List<Pagamento> listarPorContrato(@PathVariable Long contratoId) {
-        return pagamentoService.buscarPorContrato(contratoId);
+    @PreAuthorize("isAuthenticated()")
+    public Page<PagamentoResponseDTO> listarPorContrato(@PathVariable Long contratoId,
+                                                         @RequestParam(defaultValue = "0") int page,
+                                                         @RequestParam(defaultValue = "20") int size) {
+        return pagamentoService.buscarPorContrato(contratoId, Pagination.of(page, size));
     }
 }

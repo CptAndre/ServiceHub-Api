@@ -13,8 +13,8 @@ public class Contrato {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "descricao_moveis")
-    private String descricaoMoveis;
+    @Column(name = "descricao_servico")
+    private String descricaoServico;
 
     @Column(name = "valor_total")
     private BigDecimal valorTotal;
@@ -26,8 +26,8 @@ public class Contrato {
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
 
-    // Relacionamento com Montador
+    // Relacionamento com prestador
     @ManyToOne
-    @JoinColumn(name = "montador_id")
-    private Montador montador;
+    @JoinColumn(name = "prestador_id")
+    private Prestador prestador;
 }

@@ -1,0 +1,4 @@
+ALTER TABLE clientes
+    ADD COLUMN email VARCHAR(255),
+    ADD COLUMN telefone VARCHAR(20),
+    ALTER COLUMN documento DROP NOT NULL;

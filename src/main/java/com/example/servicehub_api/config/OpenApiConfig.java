@@ -12,8 +12,8 @@ public class OpenApiConfig {
     public OpenAPI serviceHubOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Montagem de Móveis")
-                        .description("API REST para gerenciar clientes, montadores, contratos, avaliações e pagamentos.")
+                        .title("ServiceHub API")
+                        .description("API REST para gerenciar clientes, prestadores de serviço, contratos, avaliações e pagamentos.")
                         .version("v1.0.0"));
     }
 }
