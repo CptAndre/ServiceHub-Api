@@ -59,7 +59,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> accessDenied(AccessDeniedException ex) {
         return response(HttpStatus.FORBIDDEN, "Acesso negado",
-                List.of("A role ADMIN é necessária"));
+                List.of("Seu perfil não tem permissão para esta operação"));
     }
 
     @ExceptionHandler(Exception.class)

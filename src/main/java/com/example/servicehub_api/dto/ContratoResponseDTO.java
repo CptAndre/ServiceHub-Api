@@ -15,9 +15,11 @@ public class ContratoResponseDTO {
     private String status;
     private Long clienteId;
     private Long prestadorId;
+    private Long servicoId;
 
     public static ContratoResponseDTO from(Contrato contrato) {
         return new ContratoResponseDTO(contrato.getId(), contrato.getDescricaoServico(), contrato.getValorTotal(),
-                contrato.getStatus(), contrato.getCliente().getId(), contrato.getPrestador().getId());
+                contrato.getStatus(), contrato.getCliente().getId(), contrato.getPrestador().getId(),
+                contrato.getServico() == null ? null : contrato.getServico().getId());
     }
 }

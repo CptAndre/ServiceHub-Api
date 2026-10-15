@@ -21,13 +21,13 @@ public class PagamentoController {
 
     @PostMapping("/api/pagamentos")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public PagamentoResponseDTO criar(@Valid @RequestBody PagamentoRequestDTO dto) {
         return pagamentoService.salvar(dto);
     }
 
     @GetMapping("/api/contratos/{contratoId}/pagamentos")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<PagamentoResponseDTO> listarPorContrato(@PathVariable Long contratoId,
                                                          @RequestParam(defaultValue = "0") int page,
                                                          @RequestParam(defaultValue = "20") int size) {

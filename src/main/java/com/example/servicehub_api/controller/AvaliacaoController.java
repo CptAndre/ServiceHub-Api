@@ -21,13 +21,13 @@ public class AvaliacaoController {
 
     @PostMapping("/api/avaliacoes")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public AvaliacaoResponseDTO criar(@Valid @RequestBody AvaliacaoRequestDTO dto) {
         return avaliacaoService.salvar(dto);
     }
 
     @GetMapping("/api/prestadores/{prestadorId}/avaliacoes")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<AvaliacaoResponseDTO> listarPorPrestador(@PathVariable Long prestadorId,
                                                           @RequestParam(defaultValue = "0") int page,
                                                           @RequestParam(defaultValue = "20") int size) {

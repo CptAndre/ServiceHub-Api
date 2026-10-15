@@ -30,4 +30,8 @@ public class Contrato {
     @ManyToOne
     @JoinColumn(name = "prestador_id")
     private Prestador prestador;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "servico_id")
+    private Servico servico;
 }

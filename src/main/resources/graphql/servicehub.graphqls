@@ -1,0 +1,49 @@
+type Query {
+  provider(id: ID!): Provider
+  providers(specialty: String, page: Int = 0, size: Int = 20): [Provider!]!
+  servicesByProvider(providerId: ID!, page: Int = 0, size: Int = 20): [Service!]!
+}
+
+type Mutation {
+  createService(input: CreateServiceInput!): Service!
+  bookService(input: BookServiceInput!): Booking!
+}
+
+input CreateServiceInput {
+  providerId: ID!
+  title: String!
+  description: String
+  price: Float!
+}
+
+input BookServiceInput {
+  clientId: ID!
+  serviceId: ID!
+}
+
+type Provider {
+  id: ID!
+  name: String!
+  specialty: String
+  phone: String
+  services(page: Int = 0, size: Int = 20): [Service!]!
+}
+
+type Service {
+  id: ID!
+  title: String!
+  description: String
+  price: Float!
+  providerId: ID!
+}
+
+"""A booking corresponds to a ServiceHub contract."""
+type Booking {
+  id: ID!
+  description: String!
+  totalValue: Float!
+  status: String!
+  clientId: ID!
+  providerId: ID!
+  serviceId: ID
+}

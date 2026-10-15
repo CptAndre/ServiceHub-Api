@@ -22,33 +22,33 @@ public class PrestadorController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public PrestadorResponseDTO criar(@Valid @RequestBody PrestadorRequestDTO dto) {
         return prestadorService.salvar(dto);
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<PrestadorResponseDTO> listarTodos(@RequestParam(defaultValue = "0") int page,
                                                   @RequestParam(defaultValue = "20") int size) {
         return prestadorService.buscarTodos(Pagination.of(page, size));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public PrestadorResponseDTO buscarPorId(@PathVariable Long id) {
         return prestadorService.buscarPorId(id);
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public PrestadorResponseDTO atualizar(@PathVariable Long id, @Valid @RequestBody PrestadorRequestDTO dto) {
         return prestadorService.atualizar(id, dto);
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public void deletar(@PathVariable Long id) {
         prestadorService.deletar(id);
     }
