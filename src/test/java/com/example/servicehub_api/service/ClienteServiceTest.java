@@ -4,7 +4,11 @@ import com.example.servicehub_api.dto.ClienteRequestDTO;
 import com.example.servicehub_api.model.Cliente;
 import com.example.servicehub_api.repository.ClienteRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -30,5 +34,15 @@ class ClienteServiceTest {
         verify(repository).save(saved.capture());
         assertEquals("&lt;script&gt;alert(1)&lt;/script&gt;", saved.getValue().getNome());
         assertEquals("ana@example.com", saved.getValue().getEmail());
+    }
+
+    @Test
+    void buscarPorIdRetornaNotFoundQuandoClienteNaoExiste() {
+        when(repository.findById(99L)).thenReturn(java.util.Optional.empty());
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> service.buscarPorId(99L));
+
+        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
     }
 }
