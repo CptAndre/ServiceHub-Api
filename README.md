@@ -46,6 +46,34 @@ A documentação REST fica disponível em `http://localhost:8080/swagger-ui/inde
 O playground GraphiQL fica em `http://localhost:8080/graphiql`; as operações GraphQL
 são servidas em `POST http://localhost:8080/graphql` e exigem token JWT.
 
+## Executar com Docker Compose
+
+Com o Docker Engine e o comando `docker compose` disponíveis, crie o arquivo local
+de configuração a partir do exemplo e substitua os valores de demonstração:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Suba a API e o PostgreSQL a partir da pasta `servicehub-api`:
+
+```powershell
+docker compose up -d --build
+docker compose ps
+docker compose logs -f api
+```
+
+A API fica disponível em `http://localhost:8080` e o Swagger em
+`http://localhost:8080/swagger-ui/index.html`. No Compose, a API encontra o banco
+pelo hostname `postgres`; as migrações do Flyway são executadas ao iniciar. O
+volume nomeado `pg_data` preserva os dados quando os containers são recriados.
+Para parar os serviços sem apagar os dados, use `docker compose down`. O comando
+`docker compose down -v` também remove o volume e apaga os dados do banco.
+
+As portas publicadas podem ser alteradas por `API_PORT` e `POSTGRES_PORT` no `.env`.
+O `.env` é ignorado pelo Git; não use as credenciais e a chave de demonstração do
+`.env.example` em ambientes compartilhados ou de produção.
+
 ## Segurança e exemplos
 
 O login em `POST /api/auth/login` valida as credenciais e retorna um JWT Bearer.
