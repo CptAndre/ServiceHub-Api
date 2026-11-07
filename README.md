@@ -1,240 +1,155 @@
 # ServiceHub API
 
-API REST e GraphQL para gerenciar clientes, prestadores de serviço, contratos, avaliações e pagamentos.
+API REST e GraphQL com Java 21, Spring Boot, PostgreSQL e Flyway.
 
-## Requisitos
+## Modelo de referência do professor
 
-- Java 21
-- PostgreSQL
+As migrações V1 a V8 foram mantidas. A V9 cria o schema oficial de `servicehub_schema.sql`:
 
-## Configuração
+- `users`: clientes, prestadores e administradores, e-mail normalizado e senha BCrypt.
+- `services`: serviço, categoria, preço, prestador e exclusão lógica.
+- `service_requests`: ordens com preço histórico, agendamento e máquina de estados.
+- `reviews`: uma avaliação por ordem concluída, com autoria e nota de 1 a 5.
 
-Crie o banco de dados `servicehub` no PostgreSQL antes de iniciar a aplicação:
+A V10 transfere os registros antigos e conserva as cinco tabelas de origem como
+`legacy_*`. CPF e documento ficam nessas tabelas históricas, pois não existem no
+schema oficial. `pagamentos` continua como extensão local e passa a referenciar
+`service_requests`. O schema das quatro tabelas centrais é comparado com uma cópia
+integral do SQL do professor nos testes de PostgreSQL.
 
-```sql
-CREATE DATABASE servicehub;
-```
+Clientes mantêm seus IDs. Prestadores recebem IDs de usuário acima do maior ID de
+cliente, evitando colisões. Contratos e avaliações mantêm os IDs. Serviços sem
+categoria prévia entram como `OUTROS`. Contratos avulsos ganham um serviço histórico
+inativo. Os instantes de criação desses registros novos correspondem à migração,
+pois a estrutura anterior não registrava todos esses instantes.
 
-Configure as variáveis de ambiente usando o usuário e a senha definidos na instalação local do PostgreSQL. A senha abaixo é apenas um exemplo e deve ser substituída pela senha do PostgreSQL da sua máquina:
+Contas migradas ficam **inativas**, com hash de senha aleatória sem senha recuperável.
+Um administrador deve atribuir e-mail e senha reais e informar `ativo: true` na
+atualização do cliente/prestador para habilitar a conta. Prestadores sem e-mail antigo
+recebem um endereço reservado sob `servicehub.invalid`. Nenhuma credencial antiga de
+demonstração é mantida. E-mails duplicados, nomes incompatíveis, preços inválidos,
+avaliações repetidas ou vínculos inconsistentes interrompem a migração com mensagem,
+sem descartar dados. Corrija a origem e tente novamente.
 
-```text
-DB_URL=jdbc:postgresql://localhost:5432/servicehub
-DB_USERNAME=postgres
-DB_PASSWORD=sua-senha-do-postgresql
-```
+Não execute o SQL de referência diretamente sobre o banco do projeto. Inicie a
+aplicação para o Flyway aplicar as novas migrações. Faça uma cópia do banco antes de
+migrar um ambiente com dados importantes.
 
-No Windows PowerShell, as variáveis podem ser configuradas para a sessão atual com:
+## Configuração e execução
+
+Requer Java 21 e um banco PostgreSQL vazio ou já gerenciado pelas migrações V1–V8.
+Crie o banco `servicehub` e configure as variáveis na sessão PowerShell ou em `.env`:
 
 ```powershell
 $env:DB_URL = "jdbc:postgresql://localhost:5432/servicehub"
 $env:DB_USERNAME = "postgres"
-$env:DB_PASSWORD = "sua-senha-do-postgresql"
-$env:JWT_SECRET = "<chave-aleatoria-em-base64-com-no-minimo-32-bytes>"
-```
-
-Substitua `sua-senha-do-postgresql` pela senha criada para o usuário `postgres` na sua instalação. Não informe nem grave senhas reais no repositório. As migrações do Flyway são executadas automaticamente.
-
-## Executar
-
-No Windows:
-
-```powershell
+$env:DB_PASSWORD = "<senha-local>"
+$env:JWT_SECRET = "<chave-aleatoria-Base64-com-pelo-menos-32-bytes>"
 .\mvnw.cmd spring-boot:run
 ```
 
-A documentação REST fica disponível em `http://localhost:8080/swagger-ui/index.html`.
-O playground GraphiQL fica em `http://localhost:8080/graphiql`; as operações GraphQL
-são servidas em `POST http://localhost:8080/graphql` e exigem token JWT.
+Opcionalmente, defina `SERVICEHUB_ADMIN_EMAIL` e `SERVICEHUB_ADMIN_PASSWORD` para
+criar o primeiro administrador. A senha deve ter pelo menos 12 caracteres e no
+máximo 72 bytes UTF-8. O bootstrap não altera a senha de contas existentes nem
+promove uma conta de outro perfil. Não versione valores reais.
 
-## Executar com Docker Compose
-
-Com o Docker Engine e o comando `docker compose` disponíveis, crie o arquivo local
-de configuração a partir do exemplo e substitua os valores de demonstração:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Suba a API e o PostgreSQL a partir da pasta `servicehub-api`:
+Para Docker, copie `.env.example` para `.env`, preencha as variáveis e execute:
 
 ```powershell
 docker compose up -d --build
-docker compose ps
 docker compose logs -f api
 ```
 
-A API fica disponível em `http://localhost:8080` e o Swagger em
-`http://localhost:8080/swagger-ui/index.html`. No Compose, a API encontra o banco
-pelo hostname `postgres`; as migrações do Flyway são executadas ao iniciar. O
-volume nomeado `pg_data` preserva os dados quando os containers são recriados.
-Para parar os serviços sem apagar os dados, use `docker compose down`. O comando
-`docker compose down -v` também remove o volume e apaga os dados do banco.
+O Compose mantém o PostgreSQL 15 usado anteriormente para não tornar um volume
+existente incompatível por uma troca automática de versão principal. O schema de
+referência foi escrito para PostgreSQL 16 e usa recursos disponíveis também no 15.
+Atualizar a versão do servidor exige exportação/restauração ou upgrade apropriado
+para o volume existente. Não remova o volume para atualizar o schema.
 
-As portas publicadas podem ser alteradas por `API_PORT` e `POSTGRES_PORT` no `.env`.
-O `.env` é ignorado pelo Git; não use as credenciais e a chave de demonstração do
-`.env.example` em ambientes compartilhados ou de produção.
+REST: `http://localhost:8080/api/...`
+Swagger: `http://localhost:8080/swagger-ui/index.html`
+GraphiQL: `http://localhost:8080/graphiql`
+GraphQL: `POST http://localhost:8080/graphql`
 
-## Segurança e exemplos
+## Cadastro e login
 
-O login em `POST /api/auth/login` valida as credenciais e retorna um JWT Bearer.
-Os usuários abaixo são contas de demonstração em memória (senhas codificadas com
-BCrypt); não representam autenticação persistente nem devem ser usadas em produção:
+`POST /api/auth/register` é público e permite os perfis `CLIENT` e `PROVIDER`.
+O cadastro público não permite criar `ADMIN`.
 
-- `admin / admin123`: role `ADMIN`
-- `provider / provider123`: role `PROVIDER`
-- `client / client123`: role `CLIENT`
+```json
+{
+  "nome": "Ana Silva",
+  "email": "ana@example.com",
+  "telefone": "11999999999",
+  "password": "<senha-propria-de-pelo-menos-12-caracteres>",
+  "role": "CLIENT"
+}
+```
 
-Somente `/api/auth/login`, `/api/hello`, `/api-docs/**`, `/swagger-ui/**` e a
-interface `/graphiql` são públicos. As operações em `/graphql` e os demais
-endpoints protegidos exigem `Authorization: Bearer <token>` e aplicam regras de
-acesso por role. A chave JWT local é apenas para demonstração. Configure
-`JWT_SECRET` com uma chave aleatória em Base64 de pelo menos 256 bits e ajuste
-`JWT_EXPIRATION_MS` no ambiente; não use o valor de exemplo em ambientes
-compartilhados ou de produção.
+Faça login em `POST /api/auth/login` com `email` (ou `username`) e `password`.
+Use `Authorization: Bearer <accessToken>` nas operações protegidas. O token deixa
+de ser aceito se a conta estiver inativa ou seu perfil tiver mudado.
 
-Respostas não expõem entidades JPA diretamente e as entradas textuais livres são
-normalizadas e escapadas para HTML na camada de serviço. O CPF do prestador é
-validado com formato e dígitos verificadores. O projeto ainda usa usuários em
-memória e não associa cada registro ao usuário autenticado, portanto a autorização
-por propriedade do recurso (BOLA) não está implementada.
+As rotas portuguesas existentes foram mantidas. Clientes e prestadores agora são
+perfis da mesma tabela `users`. Os cadastros exigem e-mail e senha. Campos CPF e
+documento saíram do contrato atual, acompanhando o schema do professor.
 
-### Testes rápidos (PowerShell)
+## Serviços, contratação e avaliação
+
+Crie um serviço como seu prestador autenticado, em `POST /api/servicos`:
+
+```json
+{
+  "titulo": "Suporte técnico",
+  "descricao": "Atendimento residencial",
+  "preco": 150.00,
+  "categoria": "SUPORTE_TECNICO",
+  "prestadorId": 2
+}
+```
+
+Os IDs são exemplos. Use os IDs retornados pelo cadastro. Consulte as 21 categorias
+em `ServiceCategory`. Também são aceitos os aliases `title`, `description`, `price`,
+`category` e `providerId`.
+
+Contrate em `POST /api/contratos/bookings` com `clientId` e `serviceId`. Para incluir
+agendamento e observações, use `POST /api/contratos` com `clienteId`, `servicoId`,
+`scheduledAt` e `descricaoServico`. O cliente deve ser o autenticado, salvo ação de
+ADMIN. O preço sempre vem do serviço e permanece na ordem após alterações futuras.
+
+O prestador responsável altera o status com `PATCH /api/contratos/{id}`:
+`PENDING` → `ACCEPTED` → `IN_PROGRESS` → `COMPLETED`. Também pode cancelar uma ordem
+não finalizada com `CANCELLED`. Estados finais não podem ser reabertos.
+
+`POST /api/avaliacoes` recebe `nota`, `comentario` e `contratoId`. Só o cliente da
+ordem, ou ADMIN em seu nome, pode avaliar uma ordem concluída, uma única vez.
+
+Exclusões de contas e serviços são lógicas. Ordens ativas bloqueiam a exclusão.
+Os textos da API são JSON e permanecem em texto original, sem codificação HTML
+persistida e sem escape repetido. Interfaces que exibem esses valores devem usar
+renderização de texto ou codificação adequada ao contexto.
+
+A criação GraphQL exige `category` no input `createService`. A mutation `bookService`
+usará os mesmos usuários, serviços, verificações de acesso e regras do REST.
+
+## Testes
 
 ```powershell
-# Público
-curl.exe http://localhost:8080/api/hello
-
-# Sem autenticação: 401
-curl.exe http://localhost:8080/api/clientes
-
-# Obter token de cliente
-$login = curl.exe -s -H "Content-Type: application/json" `
-  -d '{"username":"client","password":"client123"}' `
-  http://localhost:8080/api/auth/login | ConvertFrom-Json
-$token = $login.accessToken
-
-# Leitura autenticada e paginação (máximo size=50)
-curl.exe -H "Authorization: Bearer $token" "http://localhost:8080/api/prestadores?page=0&size=20"
-
-# Criar cliente como CLIENT
-curl.exe -H "Authorization: Bearer $token" -H "Content-Type: application/json" `
-  -d '{"nome":"Ana","email":"ana@example.com","telefone":"11999999999","documento":"12345678900"}' `
-  http://localhost:8080/api/clientes
-
-# Validação: 400
-curl.exe -H "Authorization: Bearer $token" -H "Content-Type: application/json" `
-  -d '{"nome":"","email":"invalido","telefone":"1"}' `
-  http://localhost:8080/api/clientes
-
-# Recurso inexistente: 404
-curl.exe -H "Authorization: Bearer $token" http://localhost:8080/api/clientes/999999
-
-# CLIENT tentando alteração administrativa: 403
-curl.exe -H "Authorization: Bearer $token" -X DELETE http://localhost:8080/api/clientes/1
-
-# GraphQL: prestadores por especialidade
-$graphqlBody = @{ query = 'query { providers(specialty: "Limpeza") { id name specialty } }' } | ConvertTo-Json -Compress
-curl.exe -H "Authorization: Bearer $token" -H "Content-Type: application/json" `
-  -d $graphqlBody http://localhost:8080/graphql
-
-# GraphQL: serviço do prestador (PROVIDER token necessário para criar)
-$providerLogin = Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/auth/login" `
-  -ContentType "application/json" -Body (@{ username = "provider"; password = "provider123" } | ConvertTo-Json)
-$providerToken = $providerLogin.accessToken
-$serviceBody = @{ query = 'mutation { createService(input: { providerId: "1", title: "Limpeza residencial", description: "Limpeza de apartamento", price: 150.00 }) { id title price providerId } }' } | ConvertTo-Json -Compress
-curl.exe -H "Authorization: Bearer $providerToken" -H "Content-Type: application/json" `
-  -d $serviceBody http://localhost:8080/graphql
-
-# Reservar serviço como cliente
-$bookingBody = @{ query = 'mutation { bookService(input: { clientId: "6", serviceId: "1" }) { id description totalValue status clientId providerId serviceId } }' } | ConvertTo-Json -Compress
-curl.exe -H "Authorization: Bearer $token" -H "Content-Type: application/json" `
-  -d $bookingBody http://localhost:8080/graphql
-
-# ADMIN pode excluir (obtenha seu token com /api/auth/login)
-$adminLogin = curl.exe -s -H "Content-Type: application/json" `
-  -d '{"username":"admin","password":"admin123"}' `
-  http://localhost:8080/api/auth/login | ConvertFrom-Json
-curl.exe -H "Authorization: Bearer $($adminLogin.accessToken)" -X DELETE http://localhost:8080/api/clientes/1
-
-# Método não permitido: 405 (PATCH é permitido pelo firewall, mas não há rota PATCH)
-curl.exe -H "Authorization: Bearer $token" -X PATCH http://localhost:8080/api/clientes
+.\mvnw.cmd test
 ```
 
-Os testes automatizados existentes cobrem segurança, validação, CPF e sanitização.
-Para rodar a suíte,
-configure Java 21 e PostgreSQL conforme os requisitos acima e execute `.\mvnw.cmd test`.
-
-Para testar sanitização, envie `"<script>alert(1)</script>"` em `nome`,
-`descricaoServico` ou `comentario`; o valor persistido e retornado será escapado
-(`&lt;script&gt;...`). Não use dados reais nos testes.
-
-### CORS e limites
-
-Defina uma lista explícita de origens, separada por vírgulas, sem `*`:
+Os testes comuns usam H2. Para executar também a comparação do schema, as migrações
+com dados legados e o fluxo completo da API com Flyway e `ddl-auto=validate`, indique
+um **banco PostgreSQL exclusivo de teste e inicialmente vazio**:
 
 ```powershell
-$env:APP_CORS_ALLOWED_ORIGINS = "http://localhost:3000,https://app.exemplo.test"
-$env:MAX_PAYLOAD_SIZE_BYTES = "1048576"
-$env:MAX_REQUEST_SIZE = "1MB"
+$env:SERVICEHUB_TEST_DB_URL = "jdbc:postgresql://localhost:55432/servicehub_test"
+$env:SERVICEHUB_TEST_DB_USER = "servicehub_test"
+$env:SERVICEHUB_TEST_DB_PASSWORD = "<senha-de-teste>"
+.\mvnw.cmd clean verify
 ```
 
-Credenciais CORS ficam habilitadas apenas para essas origens. O limite de página
-é `size <= 50`; payloads JSON usam `MAX_PAYLOAD_SIZE_BYTES`, enquanto formulários
-multipart usam `MAX_REQUEST_SIZE` e `MAX_FILE_SIZE`.
-
-## Status técnico do projeto
-
-### Situação atual
-
-O projeto está estruturado como uma aplicação Spring Boot com Java 21, Maven, PostgreSQL, Spring Data JPA e Flyway. A API possui camadas separadas de controladores, serviços, repositórios, entidades e configurações.
-
-As funcionalidades principais implementadas são:
-
-- Cadastro, consulta, atualização e exclusão de clientes.
-- Cadastro, consulta, atualização e exclusão de prestadores de serviço.
-- Cadastro e consulta de serviços vinculados a prestadores.
-- Cadastro e consulta de contratos.
-- Cadastro e consulta de avaliações.
-- Cadastro e consulta de pagamentos.
-- Documentação OpenAPI/Swagger.
-- Migrações versionadas do banco de dados.
-- Login JWT stateless com roles `ADMIN`, `PROVIDER` e `CLIENT`.
-- Endpoint GraphQL com consultas de prestadores e contratos e mutation de contratação.
-- Queries e mutations GraphQL para serviços e reservas, além de campos de serviço em prestadores.
-
-### Banco de dados
-
-As migrações estão em `src/main/resources/db/migration`:
-
-1. `V1__Create_clientes_table.sql`
-2. `V2__Create_montadores_table.sql` (estrutura histórica)
-3. `V3__Create_contratos_table.sql`
-4. `V4__Create_avaliacoes_table.sql`
-5. `V5__Create_pagamentos_table.sql`
-6. `V6__Add_contact_fields_to_clientes.sql`
-7. `V7__Generalize_service_provider_domain.sql`
-8. `V8__Create_servicos_table.sql`
-8. `V8__Create_servicos_table.sql`
-
-O Hibernate está configurado com `ddl-auto=validate`, portanto o schema deve ser criado pelas migrações do Flyway. As credenciais do banco são fornecidas por variáveis de ambiente e não devem ser gravadas no repositório.
-
-### Organização do código
-
-```text
-src/main/java/com/example/servicehub_api
-├── config          Configurações da aplicação e OpenAPI
-├── controller      Endpoints REST
-├── dto             Objetos de entrada e saída validados
-├── exception      Exceções da aplicação
-├── graphql        Queries e mutations GraphQL
-├── model           Entidades JPA
-├── repository      Repositórios Spring Data
-└── service         Regras de negócio
-```
-
-### Qualidade e validação
-
-- Os testes automatizados de segurança, validação e sanitização estão em `src/test`.
-- O arquivo `pom.xml` e as migrações SQL foram verificados.
-- A execução dos testes depende de uma instalação configurada do Java 21.
-- O ambiente atual não possui `JAVA_HOME` configurado; configure essa variável antes de executar `.\mvnw.cmd test`.
+Esses testes criam tabelas no schema `public` e schemas temporários de validação.
+Nunca aponte as variáveis `SERVICEHUB_TEST_DB_*` para um banco de uso real. Sem essas
+variáveis, os testes específicos de PostgreSQL são ignorados. Docker não é necessário
+quando há PostgreSQL local disponível.

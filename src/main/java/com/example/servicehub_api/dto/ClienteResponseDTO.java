@@ -1,20 +1,15 @@
 package com.example.servicehub_api.dto;
-
-import com.example.servicehub_api.model.Cliente;
+import com.example.servicehub_api.model.Usuario;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
-@Data
-@AllArgsConstructor
+@Data @AllArgsConstructor
 public class ClienteResponseDTO {
     private Long id;
     private String nome;
-    private String documento;
     private String email;
     private String telefone;
-
-    public static ClienteResponseDTO from(Cliente cliente) {
-        return new ClienteResponseDTO(cliente.getId(), cliente.getNome(), cliente.getDocumento(),
-                cliente.getEmail(), cliente.getTelefone());
+    private boolean ativo;
+    public static ClienteResponseDTO from(Usuario user) {
+        return new ClienteResponseDTO(user.getId(), user.getNome(), user.getEmail(), user.getTelefone(), user.isAtivo());
     }
 }

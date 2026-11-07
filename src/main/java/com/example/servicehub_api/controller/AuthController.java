@@ -1,6 +1,11 @@
 package com.example.servicehub_api.controller;
 
 import com.example.servicehub_api.dto.LoginRequestDTO;
+import com.example.servicehub_api.dto.RegisterRequestDTO;
+import com.example.servicehub_api.dto.ClienteResponseDTO;
+import com.example.servicehub_api.model.UserRole;
+import com.example.servicehub_api.service.AccountService;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import com.example.servicehub_api.dto.LoginResponseDTO;
 import com.example.servicehub_api.service.JwtService;
 import jakarta.validation.Valid;
@@ -23,10 +28,21 @@ public class AuthController {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final AccountService accounts;
 
-    public AuthController(AuthenticationManager authenticationManager, JwtService jwtService) {
+    public AuthController(AuthenticationManager authenticationManager, JwtService jwtService, AccountService accounts) {
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.accounts = accounts;
+    }
+
+    @PostMapping("/register")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ClienteResponseDTO register(@Valid @RequestBody RegisterRequestDTO request) {
+        if (request.getRole() == UserRole.ADMIN) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cadastro público não permite ADMIN");
+        }
+        return ClienteResponseDTO.from(accounts.criar(request, request.getRole()));
     }
 
     @PostMapping("/login")

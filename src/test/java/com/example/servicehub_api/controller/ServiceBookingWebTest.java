@@ -35,6 +35,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class ServiceBookingWebTest {
 
+    @MockitoBean
+    private com.example.servicehub_api.repository.UsuarioRepository usuarios;
+
+    @org.junit.jupiter.api.BeforeEach
+    void configureUsers() {
+        org.mockito.Mockito.lenient().when(usuarios.findByEmail(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            var user = new com.example.servicehub_api.model.Usuario();
+            user.setEmail(name); user.setPasswordHash("unused"); user.setId(1L);
+            user.setPapel(com.example.servicehub_api.model.UserRole.valueOf(name.equals("admin") ? "ADMIN" : name.equals("provider") ? "PROVIDER" : "CLIENT"));
+            return java.util.Optional.of(user);
+        });
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -50,13 +64,13 @@ class ServiceBookingWebTest {
     @Test
     void providerCanCreateService() throws Exception {
         when(servicoService.criar(any())).thenReturn(
-                new ServicoResponseDTO(15L, "Limpeza", "Residencial", new BigDecimal("150.00"), 1L));
+                new ServicoResponseDTO(15L, "Limpeza", "Residencial", new BigDecimal("150.00"), 1L, com.example.servicehub_api.model.ServiceCategory.LIMPEZA, true));
 
         mockMvc.perform(post("/api/servicos")
                         .header("Authorization", bearerToken("provider", "PROVIDER"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"titulo\":\"Limpeza\",\"descricao\":\"Residencial\","
-                                + "\"preco\":150.00,\"prestadorId\":1}"))
+                                + "\"preco\":150.00,\"categoria\":\"LIMPEZA\",\"prestadorId\":1}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(15))
                 .andExpect(jsonPath("$.prestadorId").value(1));
@@ -69,7 +83,7 @@ class ServiceBookingWebTest {
         mockMvc.perform(post("/api/servicos")
                         .header("Authorization", bearerToken("client", "CLIENT"))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"titulo\":\"Limpeza\",\"preco\":150.00,\"prestadorId\":1}"))
+                        .content("{\"titulo\":\"Limpeza\",\"preco\":150.00,\"categoria\":\"LIMPEZA\",\"prestadorId\":1}"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.status").value(403));
 
@@ -80,7 +94,7 @@ class ServiceBookingWebTest {
     void clientCanBookService() throws Exception {
         when(contratoService.bookService(6L, 15L)).thenReturn(
                 new ContratoResponseDTO(25L, "Limpeza residencial", new BigDecimal("150.00"),
-                        "AGENDADO", 6L, 1L, 15L));
+                        "PENDING", 6L, 1L, 15L, null));
 
         mockMvc.perform(post("/api/contratos/bookings")
                         .header("Authorization", bearerToken("client", "CLIENT"))
@@ -88,7 +102,7 @@ class ServiceBookingWebTest {
                         .content("{\"clientId\":6,\"serviceId\":15}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(25))
-                .andExpect(jsonPath("$.status").value("AGENDADO"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
                 .andExpect(jsonPath("$.servicoId").value(15));
 
         verify(contratoService).bookService(6L, 15L);

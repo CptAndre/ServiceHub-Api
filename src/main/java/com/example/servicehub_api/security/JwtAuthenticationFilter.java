@@ -47,10 +47,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     List<SimpleGrantedAuthority> authorities = roles == null
                             ? List.of()
                             : roles.stream().map(SimpleGrantedAuthority::new).toList();
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(user, null, authorities);
-                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    if (user.isEnabled() && user.isAccountNonLocked() && user.isAccountNonExpired()
+                            && user.isCredentialsNonExpired() && authorities.size() == user.getAuthorities().size()
+                            && authorities.containsAll(user.getAuthorities())) {
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                    }
                 }
             } catch (JwtException | IllegalArgumentException | org.springframework.security.core.userdetails.UsernameNotFoundException ex) {
                 SecurityContextHolder.clearContext();

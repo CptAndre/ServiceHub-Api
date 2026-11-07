@@ -1,21 +1,12 @@
 package com.example.servicehub_api.dto;
-
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import jakarta.validation.constraints.*;
 import lombok.Data;
-
-import java.math.BigDecimal;
-
+import java.time.LocalDateTime;
 @Data
 public class ContratoRequestDTO {
-    @NotBlank @Size(max = 2000)
-    private String descricaoServico;
-    @NotNull @Positive
-    private BigDecimal valorTotal;
-    @NotNull @Positive
-    private Long clienteId;
-    @NotNull @Positive
-    private Long prestadorId;
+    @JsonAlias("clientId") @NotNull @Positive private Long clienteId;
+    @JsonAlias("serviceId") @NotNull @Positive private Long servicoId;
+    @Future private LocalDateTime scheduledAt;
+    @JsonAlias("notes") @Size(max = 2000) private String descricaoServico;
 }

@@ -4,8 +4,10 @@ import com.example.servicehub_api.dto.ContratoResponseDTO;
 import com.example.servicehub_api.dto.PrestadorResponseDTO;
 import com.example.servicehub_api.dto.ServicoRequestDTO;
 import com.example.servicehub_api.dto.ServicoResponseDTO;
-import com.example.servicehub_api.model.Prestador;
-import com.example.servicehub_api.repository.PrestadorRepository;
+import com.example.servicehub_api.model.Usuario;
+import com.example.servicehub_api.model.UserRole;
+import com.example.servicehub_api.model.ServiceCategory;
+import com.example.servicehub_api.repository.UsuarioRepository;
 import com.example.servicehub_api.service.ContratoService;
 import com.example.servicehub_api.service.ServicoService;
 import com.example.servicehub_api.util.Pagination;
@@ -34,12 +36,12 @@ import jakarta.validation.constraints.Positive;
 @Controller
 public class ServiceHubGraphQlController {
 
-    private final PrestadorRepository prestadorRepository;
+    private final UsuarioRepository prestadorRepository;
     private final ContratoService contratoService;
     private final ServicoService servicoService;
     private final Validator validator;
 
-    public ServiceHubGraphQlController(PrestadorRepository prestadorRepository,
+    public ServiceHubGraphQlController(UsuarioRepository prestadorRepository,
                                        ContratoService contratoService,
                                        ServicoService servicoService,
                                        Validator validator) {
@@ -52,7 +54,7 @@ public class ServiceHubGraphQlController {
     @QueryMapping
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public GraphQlProvider provider(@Argument Long id) {
-        Prestador prestador = prestadorRepository.findById(id)
+        Usuario prestador = prestadorRepository.findById(id).filter(u -> u.getPapel() == UserRole.PROVIDER && u.isAtivo())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Prestador não encontrado com o ID: " + id));
         return GraphQlProvider.from(PrestadorResponseDTO.from(prestador));
@@ -64,9 +66,9 @@ public class ServiceHubGraphQlController {
                                           @Argument Integer page,
                                           @Argument Integer size) {
         Pageable pageable = Pagination.of(page == null ? 0 : page, size == null ? 20 : size);
-        Page<Prestador> results = specialty == null || specialty.isBlank()
-                ? prestadorRepository.findAll(pageable)
-                : prestadorRepository.findByEspecialidadeContainingIgnoreCase(specialty.trim(), pageable);
+        Page<Usuario> results = specialty == null || specialty.isBlank()
+                ? prestadorRepository.findByPapelAndAtivoTrue(UserRole.PROVIDER, pageable)
+                : prestadorRepository.findByPapelAndAtivoTrueAndBioContainingIgnoreCase(UserRole.PROVIDER, specialty.trim(), pageable);
         return results.getContent().stream()
                 .map(PrestadorResponseDTO::from)
                 .map(GraphQlProvider::from)
@@ -92,6 +94,7 @@ public class ServiceHubGraphQlController {
         request.setTitulo(input.title());
         request.setDescricao(input.description());
         request.setPreco(input.price());
+        request.setCategoria(input.category());
 
         Set<ConstraintViolation<ServicoRequestDTO>> violations = validator.validate(request);
         if (!violations.isEmpty()) {
@@ -121,7 +124,7 @@ public class ServiceHubGraphQlController {
                 .toList();
     }
 
-    public record CreateServiceInput(Long providerId, String title, String description, BigDecimal price) {
+    public record CreateServiceInput(Long providerId, String title, String description, BigDecimal price, ServiceCategory category) {
     }
 
     public record BookServiceInput(@NotNull @Positive Long clientId,
@@ -167,10 +170,11 @@ public class ServiceHubGraphQlController {
         private final String description;
         private final BigDecimal price;
         private final Long providerId;
+        private final ServiceCategory category;
 
         static GraphQlService from(ServicoResponseDTO servico) {
             return new GraphQlService(servico.getId(), servico.getTitulo(), servico.getDescricao(),
-                    servico.getPreco(), servico.getPrestadorId());
+                    servico.getPreco(), servico.getPrestadorId(), servico.getCategoria());
         }
     }
 }

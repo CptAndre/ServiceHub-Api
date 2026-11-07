@@ -53,7 +53,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> integrityViolation(DataIntegrityViolationException ex) {
         return response(HttpStatus.CONFLICT, "Operação não permitida",
-                List.of("O registro possui relacionamentos dependentes e não pode ser removido ou alterado."));
+                List.of("O registro viola uma regra de unicidade, validade ou relacionamento do banco de dados."));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

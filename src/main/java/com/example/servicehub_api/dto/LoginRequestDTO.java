@@ -3,6 +3,6 @@ package com.example.servicehub_api.dto;
 import jakarta.validation.constraints.NotBlank;
 
 public record LoginRequestDTO(
-        @NotBlank(message = "O usuário é obrigatório.") String username,
+        @com.fasterxml.jackson.annotation.JsonAlias("email") @NotBlank(message = "O e-mail é obrigatório.") String username,
         @NotBlank(message = "A senha é obrigatória.") String password) {
 }

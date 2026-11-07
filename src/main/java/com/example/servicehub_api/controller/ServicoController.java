@@ -33,4 +33,8 @@ public class ServicoController {
                                                        @RequestParam(defaultValue = "20") int size) {
         return servicoService.listarPorPrestador(prestadorId, Pagination.of(page, size));
     }
+    @DeleteMapping("/api/servicos/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
+    public void desativar(@PathVariable Long id) { servicoService.desativar(id); }
 }

@@ -1,48 +1,35 @@
 package com.example.servicehub_api.service;
-
 import com.example.servicehub_api.dto.ClienteRequestDTO;
-import com.example.servicehub_api.model.Cliente;
-import com.example.servicehub_api.repository.ClienteRepository;
+import com.example.servicehub_api.model.*;
+import com.example.servicehub_api.repository.*;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import java.util.Optional;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 class ClienteServiceTest {
-
-    private final ClienteRepository repository = mock(ClienteRepository.class);
-    private final ClienteService service = new ClienteService(repository);
-
-    @Test
-    void escapesFreeTextBeforeSaving() {
-        ClienteRequestDTO request = new ClienteRequestDTO();
-        request.setNome("<script>alert(1)</script>");
-        request.setEmail(" ANA@example.com ");
-        request.setTelefone("11999999999");
-        request.setDocumento("12345678900");
-        when(repository.save(any(Cliente.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        service.salvar(request);
-
-        var saved = org.mockito.ArgumentCaptor.forClass(Cliente.class);
-        verify(repository).save(saved.capture());
-        assertEquals("&lt;script&gt;alert(1)&lt;/script&gt;", saved.getValue().getNome());
-        assertEquals("ana@example.com", saved.getValue().getEmail());
+    private final UsuarioRepository usuarios = mock(UsuarioRepository.class);
+    private final ContratoRepository contratos = mock(ContratoRepository.class);
+    private final ResourceAccess access = mock(ResourceAccess.class);
+    private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
+    private final AccountService service = new AccountService(usuarios, contratos, encoder, access);
+    @Test void normalizaEmailGuardaBcryptEPreservaTextoSemCodificacaoHtml() {
+        ClienteRequestDTO dto = new ClienteRequestDTO();
+        dto.setNome(" João & Silva "); dto.setEmail(" ANA@EXAMPLE.COM "); dto.setPassword("Senha-de-teste-2026");
+        when(usuarios.save(any())).thenAnswer(i -> i.getArgument(0));
+        Usuario user = service.criar(dto, UserRole.CLIENT);
+        assertEquals("ana@example.com", user.getEmail());
+        assertEquals("João & Silva", user.getNome());
+        assertNotEquals(dto.getPassword(), user.getPasswordHash());
+        assertTrue(encoder.matches(dto.getPassword(), user.getPasswordHash()));
+        assertEquals(UserRole.CLIENT, user.getPapel());
     }
-
-    @Test
-    void buscarPorIdRetornaNotFoundQuandoClienteNaoExiste() {
-        when(repository.findById(99L)).thenReturn(java.util.Optional.empty());
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.buscarPorId(99L));
-
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
+    @Test void rejeitaEmailJaCadastrado() {
+        Usuario existing = new Usuario(); existing.setId(1L);
+        when(usuarios.findByEmail("ana@example.com")).thenReturn(Optional.of(existing));
+        ClienteRequestDTO dto = new ClienteRequestDTO(); dto.setEmail("ANA@example.com");
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.criar(dto, UserRole.CLIENT));
+        assertEquals(409, error.getStatusCode().value());
+        verify(usuarios, never()).save(any());
     }
 }

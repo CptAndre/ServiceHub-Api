@@ -23,7 +23,6 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -74,7 +73,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/hello", "/api-docs/**", "/swagger-ui/**", "/graphiql", "/graphiql/**").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/hello", "/api-docs/**", "/swagger-ui/**", "/graphiql", "/graphiql/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/**", "/graphql").authenticated()
                         .anyRequest().denyAll())
@@ -97,14 +96,12 @@ public class SecurityConfig {
     }
 
     @Bean
-    InMemoryUserDetailsManager users(PasswordEncoder passwordEncoder) {
-        UserDetails admin = org.springframework.security.core.userdetails.User.withUsername("admin")
-                .password(passwordEncoder.encode("admin123")).roles("ADMIN").build();
-        UserDetails provider = org.springframework.security.core.userdetails.User.withUsername("provider")
-                .password(passwordEncoder.encode("provider123")).roles("PROVIDER").build();
-        UserDetails client = org.springframework.security.core.userdetails.User.withUsername("client")
-                .password(passwordEncoder.encode("client123")).roles("CLIENT").build();
-        return new InMemoryUserDetailsManager(admin, provider, client);
+    UserDetailsService users(com.example.servicehub_api.repository.UsuarioRepository usuarios) {
+        return username -> usuarios.findByEmail(username.trim().toLowerCase(java.util.Locale.ROOT))
+                .map(user -> org.springframework.security.core.userdetails.User.withUsername(user.getEmail())
+                        .password(user.getPasswordHash()).roles(user.getPapel().name())
+                        .disabled(!user.isAtivo()).build())
+                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException("Usuário não encontrado"));
     }
 
     @Bean

@@ -33,6 +33,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 })
 class ClienteSecurityWebTest {
 
+    @MockitoBean
+    private com.example.servicehub_api.repository.UsuarioRepository usuarios;
+
+    @org.junit.jupiter.api.BeforeEach
+    void configureUsers() {
+        org.mockito.Mockito.lenient().when(usuarios.findByEmail(org.mockito.ArgumentMatchers.anyString())).thenAnswer(invocation -> {
+            String name = invocation.getArgument(0);
+            var user = new com.example.servicehub_api.model.Usuario();
+            user.setEmail(name); user.setPasswordHash("unused"); user.setId(1L);
+            user.setPapel(com.example.servicehub_api.model.UserRole.valueOf(name.equals("admin") ? "ADMIN" : name.equals("provider") ? "PROVIDER" : "CLIENT"));
+            return java.util.Optional.of(user);
+        });
+    }
+
     @Autowired
     private MockMvc mockMvc;
 
@@ -77,7 +91,7 @@ class ClienteSecurityWebTest {
     @Test
     void clientCanCreateClient() throws Exception {
         when(clienteService.salvar(any())).thenReturn(
-                new ClienteResponseDTO(1L, "Ana", "12345678900", "ana@example.com", "11999999999"));
+                new ClienteResponseDTO(1L, "Ana", "ana@example.com", "11999999999", true));
 
         mockMvc.perform(post("/api/clientes")
                         .header("Authorization", bearerToken("client", "CLIENT"))

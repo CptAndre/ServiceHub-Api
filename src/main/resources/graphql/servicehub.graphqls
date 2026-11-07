@@ -14,6 +14,7 @@ input CreateServiceInput {
   title: String!
   description: String
   price: Float!
+  category: ServiceCategory!
 }
 
 input BookServiceInput {
@@ -35,6 +36,7 @@ type Service {
   description: String
   price: Float!
   providerId: ID!
+  category: ServiceCategory!
 }
 
 """A booking corresponds to a ServiceHub contract."""
@@ -46,4 +48,28 @@ type Booking {
   clientId: ID!
   providerId: ID!
   serviceId: ID
+}
+
+enum ServiceCategory {
+  LIMPEZA
+  DIARISTA
+  ENCANAMENTO
+  ELETRICA
+  JARDINAGEM
+  PINTURA
+  MARCENARIA
+  PEDREIRO
+  DEDETIZACAO
+  AR_CONDICIONADO
+  CHAVEIRO
+  MONTAGEM_MOVEIS
+  MUDANCA
+  SUPORTE_TECNICO
+  MANUTENCAO_COMPUTADORES
+  DESENVOLVIMENTO_SOFTWARE
+  REDES_E_INFRAESTRUTURA
+  SEGURANCA_DIGITAL
+  RECUPERACAO_DE_DADOS
+  CONSULTORIA_TI
+  OUTROS
 }

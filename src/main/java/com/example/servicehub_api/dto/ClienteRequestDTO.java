@@ -1,27 +1,19 @@
 package com.example.servicehub_api.dto;
-
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
+import com.fasterxml.jackson.annotation.JsonAlias;
+import jakarta.validation.constraints.*;
 import lombok.Data;
-
 @Data
 public class ClienteRequestDTO {
-
-    @NotBlank(message = "O nome é obrigatório e não pode ser vazio.")
-    @Size(min = 2, max = 100, message = "O nome deve ter entre 2 e 100 caracteres.")
+    @JsonAlias("fullName") @NotBlank @Size(min = 2, max = 100)
     private String nome;
-
-    @NotBlank(message = "O email é obrigatório.")
-    @Email(message = "Forneça um formato de e-mail válido.")
+    @NotBlank @Email @Size(max = 255)
     private String email;
-
-    @NotBlank(message = "O telefone é obrigatório.")
-    @Pattern(regexp = "^\\d{10,11}$", message = "Telefone deve conter apenas números (10 ou 11 dígitos).")
+    @JsonAlias("phone") @Pattern(regexp = "^\\d{10,11}$")
     private String telefone;
-
-    @Size(max = 20, message = "O documento deve ter no máximo 20 caracteres.")
-    @Pattern(regexp = "^[0-9.\\-\\s]*$", message = "O documento contém caracteres inválidos.")
-    private String documento;
+    @Size(min = 12, max = 72)
+    private String password;
+    private String bio;
+    @JsonAlias("active") private Boolean ativo;
+    @Size(max = 500)
+    private String avatarUrl;
 }

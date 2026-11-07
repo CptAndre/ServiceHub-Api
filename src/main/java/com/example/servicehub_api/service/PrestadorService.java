@@ -1,63 +1,27 @@
 package com.example.servicehub_api.service;
-
-import com.example.servicehub_api.dto.PrestadorRequestDTO;
-import com.example.servicehub_api.dto.PrestadorResponseDTO;
-import com.example.servicehub_api.model.Prestador;
-import com.example.servicehub_api.repository.PrestadorRepository;
-import org.apache.commons.text.StringEscapeUtils;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
+import com.example.servicehub_api.dto.*;
+import com.example.servicehub_api.model.UserRole;
+import com.example.servicehub_api.repository.UsuarioRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-
-@Service
+import org.springframework.transaction.annotation.Transactional;
+@Service @RequiredArgsConstructor @Transactional
 public class PrestadorService {
-
-    private final PrestadorRepository prestadorRepository;
-
-    public PrestadorService(PrestadorRepository prestadorRepository) {
-        this.prestadorRepository = prestadorRepository;
-    }
-
+    private final UsuarioRepository usuarios;
+    private final AccountService accounts;
+    private final ResourceAccess access;
     public PrestadorResponseDTO salvar(PrestadorRequestDTO dto) {
-        Prestador prestador = new Prestador();
-        preencher(prestador, dto);
-        return PrestadorResponseDTO.from(prestadorRepository.save(prestador));
+        if (dto.getEspecialidade() != null) dto.setBio(dto.getEspecialidade());
+        return PrestadorResponseDTO.from(accounts.criar(dto, UserRole.PROVIDER));
     }
-
-    public Page<PrestadorResponseDTO> buscarTodos(Pageable pageable) {
-        return prestadorRepository.findAll(pageable).map(PrestadorResponseDTO::from);
-    }
-
-    public PrestadorResponseDTO buscarPorId(Long id) {
-        return PrestadorResponseDTO.from(encontrar(id));
-    }
-
+    @Transactional(readOnly = true)
+    public Page<PrestadorResponseDTO> buscarTodos(Pageable pageable) { return usuarios.findByPapelAndAtivoTrue(UserRole.PROVIDER, pageable).map(PrestadorResponseDTO::from); }
+    public PrestadorResponseDTO buscarPorId(Long id) { return PrestadorResponseDTO.from(accounts.encontrar(id, UserRole.PROVIDER)); }
     public PrestadorResponseDTO atualizar(Long id, PrestadorRequestDTO dto) {
-        Prestador prestador = encontrar(id);
-        preencher(prestador, dto);
-        return PrestadorResponseDTO.from(prestadorRepository.save(prestador));
+        access.requireOwner(id);
+        if (dto.getEspecialidade() != null) dto.setBio(dto.getEspecialidade());
+        return PrestadorResponseDTO.from(accounts.atualizar(id, dto, UserRole.PROVIDER));
     }
-
-    public void deletar(Long id) {
-        prestadorRepository.delete(encontrar(id));
-    }
-
-    private Prestador encontrar(Long id) {
-        return prestadorRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Prestador não encontrado com o ID: " + id));
-    }
-
-    private void preencher(Prestador prestador, PrestadorRequestDTO dto) {
-        prestador.setNome(limparTexto(dto.getNome()));
-        prestador.setCpf(dto.getCpf().trim());
-        prestador.setEspecialidade(dto.getEspecialidade() == null ? null : limparTexto(dto.getEspecialidade()));
-        prestador.setTelefone(dto.getTelefone().trim());
-    }
-
-    private String limparTexto(String valor) {
-        return StringEscapeUtils.escapeHtml4(valor.trim());
-    }
+    public void deletar(Long id) { access.requireOwner(id); accounts.desativar(id, UserRole.PROVIDER); }
 }

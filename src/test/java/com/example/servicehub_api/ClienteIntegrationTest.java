@@ -1,73 +1,38 @@
 package com.example.servicehub_api;
-
-import com.example.servicehub_api.service.JwtService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
-
+import java.util.Map;
 import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
-
-@SpringBootTest
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+@SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")
 class ClienteIntegrationTest {
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private JwtService jwtService;
-
-    @Autowired
-    private ObjectMapper objectMapper;
-
-    @Test
-    void criaEConsultaClienteNoBancoH2() throws Exception {
+    @Autowired MockMvc mvc;
+    @Autowired ObjectMapper mapper;
+    @Test void cadastraAutenticaEConsultaContaPersistente() throws Exception {
         String email = "integracao-" + UUID.randomUUID() + "@example.com";
-        String token = bearerToken("client", "CLIENT");
-
-        MvcResult createResult = mockMvc.perform(post("/api/clientes")
-                        .header("Authorization", token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nome\":\"Cliente Integração\","
-                                + "\"email\":\"" + email + "\","
-                                + "\"telefone\":\"11999999999\","
-                                + "\"documento\":\"52998224725\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").isNumber())
-                .andReturn();
-
-        JsonNode createdClient = objectMapper.readTree(createResult.getResponse().getContentAsString());
-        long clientId = createdClient.path("id").asLong();
-        assertTrue(clientId > 0);
-
-        mockMvc.perform(get("/api/clientes/{id}", clientId)
-                        .header("Authorization", token))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(clientId))
-                .andExpect(jsonPath("$.email").value(email))
-                .andExpect(jsonPath("$.nome").value("Cliente Integra&ccedil;&atilde;o"));
+        String password = "Senha-de-teste-2026";
+        String body = mapper.writeValueAsString(Map.of("nome","João & Silva", "email",email.toUpperCase(java.util.Locale.ROOT), "password",password));
+        var created = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.email").value(email))
+                .andExpect(jsonPath("$.passwordHash").doesNotExist()).andReturn();
+        long id = mapper.readTree(created.getResponse().getContentAsString()).path("id").asLong();
+        var login = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(Map.of("email",email,"password",password))))
+                .andExpect(status().isOk()).andReturn();
+        String token = mapper.readTree(login.getResponse().getContentAsString()).path("accessToken").asText();
+        mvc.perform(get("/api/clientes/{id}",id).header("Authorization","Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.nome").value("João & Silva"));
     }
-
-    private String bearerToken(String username, String role) {
-        var user = User.withUsername(username)
-                .password("unused-in-this-test")
-                .roles(role)
-                .build();
-        return "Bearer " + jwtService.generateToken(user);
+    @Test void cadastroPublicoNaoPermitePrivilegioDeAdministrador() throws Exception {
+        mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content(mapper.writeValueAsString(Map.of("nome","Admin indevido","email",UUID.randomUUID()+"@example.com","password","Senha-de-teste-2026","role","ADMIN"))))
+                .andExpect(status().isForbidden());
     }
 }

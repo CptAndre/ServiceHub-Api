@@ -1,87 +1,34 @@
 package com.example.servicehub_api.service;
-
-import com.example.servicehub_api.dto.ServicoRequestDTO;
-import com.example.servicehub_api.model.Prestador;
-import com.example.servicehub_api.model.Servico;
-import com.example.servicehub_api.repository.PrestadorRepository;
-import com.example.servicehub_api.repository.ServicoRepository;
+import com.example.servicehub_api.dto.*;
+import com.example.servicehub_api.model.*;
+import com.example.servicehub_api.repository.*;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
-
 import java.math.BigDecimal;
 import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-@ExtendWith(MockitoExtension.class)
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 class ServicoServiceTest {
-
-    @Mock
-    private ServicoRepository servicoRepository;
-
-    @Mock
-    private PrestadorRepository prestadorRepository;
-
-    @InjectMocks
-    private ServicoService service;
-
-    @Test
-    void criarLimpaTextoEAssociaServicoAoPrestador() {
-        Prestador prestador = prestador(7L);
-        when(prestadorRepository.findById(7L)).thenReturn(Optional.of(prestador));
-        when(servicoRepository.save(any(Servico.class))).thenAnswer(invocation -> {
-            Servico saved = invocation.getArgument(0);
-            saved.setId(12L);
-            return saved;
-        });
-
-        ServicoRequestDTO request = new ServicoRequestDTO();
-        request.setPrestadorId(7L);
-        request.setTitulo("  <b>Limpeza</b>  ");
-        request.setDescricao("  <script>alert(1)</script>  ");
-        request.setPreco(new BigDecimal("150.00"));
-
-        var result = service.criar(request);
-
-        ArgumentCaptor<Servico> saved = ArgumentCaptor.forClass(Servico.class);
-        verify(servicoRepository).save(saved.capture());
-        assertEquals("&lt;b&gt;Limpeza&lt;/b&gt;", saved.getValue().getTitulo());
-        assertEquals("&lt;script&gt;alert(1)&lt;/script&gt;", saved.getValue().getDescricao());
-        assertEquals(prestador, saved.getValue().getPrestador());
-        assertEquals(new BigDecimal("150.00"), result.getPreco());
-        assertEquals(7L, result.getPrestadorId());
+    private final ServicoRepository servicos = mock(ServicoRepository.class);
+    private final UsuarioRepository usuarios = mock(UsuarioRepository.class);
+    private final ContratoRepository contratos = mock(ContratoRepository.class);
+    private final ResourceAccess access = mock(ResourceAccess.class);
+    private final ServicoService service = new ServicoService(servicos, usuarios, contratos, access);
+    @Test void criaServicoComCategoriaEPrestadorDoSchemaOficial() {
+        Usuario provider = new Usuario(); provider.setId(1L); provider.setPapel(UserRole.PROVIDER);
+        when(usuarios.findById(1L)).thenReturn(Optional.of(provider));
+        when(servicos.save(any())).thenAnswer(i -> i.getArgument(0));
+        ServicoRequestDTO dto = new ServicoRequestDTO(); dto.setPrestadorId(1L); dto.setTitulo(" Manutenção & suporte ");
+        dto.setPreco(new BigDecimal("150.00")); dto.setCategoria(ServiceCategory.SUPORTE_TECNICO);
+        var result = service.criar(dto);
+        assertEquals("Manutenção & suporte", result.getTitulo());
+        assertEquals(ServiceCategory.SUPORTE_TECNICO, result.getCategoria());
+        verify(access).requireOwner(1L);
     }
-
-    @Test
-    void criarRetornaNotFoundEnaoSalvaQuandoPrestadorNaoExiste() {
-        when(prestadorRepository.findById(404L)).thenReturn(Optional.empty());
-        ServicoRequestDTO request = new ServicoRequestDTO();
-        request.setPrestadorId(404L);
-        request.setTitulo("Instalação");
-        request.setPreco(new BigDecimal("100.00"));
-
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
-                () -> service.criar(request));
-
-        assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
-        verify(servicoRepository, never()).save(any(Servico.class));
-    }
-
-    private Prestador prestador(Long id) {
-        Prestador prestador = new Prestador();
-        prestador.setId(id);
-        prestador.setNome("Prestador de teste");
-        return prestador;
+    @Test void rejeitaClienteComoPrestador() {
+        Usuario client = new Usuario(); client.setId(1L); client.setPapel(UserRole.CLIENT);
+        when(usuarios.findById(1L)).thenReturn(Optional.of(client));
+        ServicoRequestDTO dto = new ServicoRequestDTO(); dto.setPrestadorId(1L);
+        var error = assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.criar(dto));
+        assertEquals(404, error.getStatusCode().value()); verify(servicos, never()).save(any());
     }
 }

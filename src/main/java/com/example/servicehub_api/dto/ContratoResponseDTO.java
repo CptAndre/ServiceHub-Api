@@ -1,13 +1,10 @@
 package com.example.servicehub_api.dto;
-
 import com.example.servicehub_api.model.Contrato;
 import lombok.AllArgsConstructor;
 import lombok.Data;
-
 import java.math.BigDecimal;
-
-@Data
-@AllArgsConstructor
+import java.time.LocalDateTime;
+@Data @AllArgsConstructor
 public class ContratoResponseDTO {
     private Long id;
     private String descricaoServico;
@@ -16,10 +13,9 @@ public class ContratoResponseDTO {
     private Long clienteId;
     private Long prestadorId;
     private Long servicoId;
-
-    public static ContratoResponseDTO from(Contrato contrato) {
-        return new ContratoResponseDTO(contrato.getId(), contrato.getDescricaoServico(), contrato.getValorTotal(),
-                contrato.getStatus(), contrato.getCliente().getId(), contrato.getPrestador().getId(),
-                contrato.getServico() == null ? null : contrato.getServico().getId());
+    private LocalDateTime scheduledAt;
+    public static ContratoResponseDTO from(Contrato c) {
+        return new ContratoResponseDTO(c.getId(), c.getDescricaoServico(), c.getValorTotal(), c.getStatus().name(),
+                c.getCliente().getId(), c.getPrestador().getId(), c.getServico().getId(), c.getScheduledAt());
     }
 }
