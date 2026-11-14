@@ -13,6 +13,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 @SpringBootTest @AutoConfigureMockMvc @ActiveProfiles("test")
 class ClienteIntegrationTest {
+    @org.springframework.test.context.DynamicPropertySource
+    static void configureDatabase(org.springframework.test.context.DynamicPropertyRegistry properties) {
+        PostgresTestDatabase.configure(properties);
+    }
+
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper mapper;
     @Test void cadastraAutenticaEConsultaContaPersistente() throws Exception {

@@ -8,7 +8,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;
+import org.jspecify.annotations.NonNull;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -18,6 +19,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -31,8 +36,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
         if (header != null && header.startsWith("Bearer ")
                 && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -42,14 +47,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = claims.getSubject();
                 if (username != null && !username.isBlank()) {
                     UserDetails user = userDetailsService.loadUserByUsername(username);
-                    @SuppressWarnings("unchecked")
-                    List<String> roles = claims.get("roles", List.class);
-                    List<SimpleGrantedAuthority> authorities = roles == null
-                            ? List.of()
-                            : roles.stream().map(SimpleGrantedAuthority::new).toList();
+                    Set<String> tokenRoles = readRoles(claims);
+                    Set<String> currentRoles = user.getAuthorities().stream()
+                            .map(GrantedAuthority::getAuthority)
+                            .filter(Objects::nonNull)
+                            .collect(Collectors.toSet());
                     if (user.isEnabled() && user.isAccountNonLocked() && user.isAccountNonExpired()
-                            && user.isCredentialsNonExpired() && authorities.size() == user.getAuthorities().size()
-                            && authorities.containsAll(user.getAuthorities())) {
+                            && user.isCredentialsNonExpired() && currentRoles.size() == user.getAuthorities().size()
+                            && tokenRoles.equals(currentRoles)) {
                         UsernamePasswordAuthenticationToken authentication =
                                 new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
                         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
@@ -61,5 +66,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         filterChain.doFilter(request, response);
+    }
+
+    private Set<String> readRoles(Claims claims) {
+        Object value = claims.get("roles");
+        if (!(value instanceof List<?> roles) || roles.isEmpty()) {
+            throw new IllegalArgumentException("Perfis ausentes ou inválidos no token");
+        }
+        Set<String> validated = new HashSet<>();
+        for (Object role : roles) {
+            if (!(role instanceof String name) || name.isBlank() || !validated.add(name)) {
+                throw new IllegalArgumentException("Perfis inválidos no token");
+            }
+        }
+        return validated;
     }
 }

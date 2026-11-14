@@ -13,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 public class ContratoController {
 
     private final ContratoService contratoService;
@@ -21,21 +22,21 @@ public class ContratoController {
         this.contratoService = contratoService;
     }
 
-    @PostMapping("/api/contratos")
+    @PostMapping({"/api/v1/contratos", "/api/contratos"})
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ContratoResponseDTO criar(@Valid @RequestBody ContratoRequestDTO dto) {
         return contratoService.salvar(dto);
     }
 
-    @PostMapping("/api/contratos/bookings")
+    @PostMapping({"/api/v1/contratos/bookings", "/api/contratos/bookings"})
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public ContratoResponseDTO bookService(@Valid @RequestBody BookServiceRestRequestDTO request) {
         return contratoService.bookService(request.getClientId(), request.getServiceId());
     }
 
-    @GetMapping("/api/clientes/{clienteId}/contratos")
+    @GetMapping({"/api/v1/clientes/{clienteId}/contratos", "/api/clientes/{clienteId}/contratos"})
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<ContratoResponseDTO> listarPorCliente(@PathVariable Long clienteId,
                                                        @RequestParam(defaultValue = "0") int page,
@@ -43,7 +44,7 @@ public class ContratoController {
         return contratoService.buscarPorCliente(clienteId, Pagination.of(page, size));
     }
 
-    @GetMapping("/api/prestadores/{prestadorId}/contratos")
+    @GetMapping({"/api/v1/prestadores/{prestadorId}/contratos", "/api/prestadores/{prestadorId}/contratos"})
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<ContratoResponseDTO> listarPorPrestador(@PathVariable Long prestadorId,
                                                         @RequestParam(defaultValue = "0") int page,
@@ -51,7 +52,7 @@ public class ContratoController {
         return contratoService.buscarPorPrestador(prestadorId, Pagination.of(page, size));
     }
 
-    @PatchMapping("/api/contratos/{id}")
+    @PatchMapping({"/api/v1/contratos/{id}", "/api/contratos/{id}"})
     @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public ContratoResponseDTO atualizarStatus(@PathVariable Long id,
                                                 @Valid @RequestBody ContratoStatusRequestDTO dto) {

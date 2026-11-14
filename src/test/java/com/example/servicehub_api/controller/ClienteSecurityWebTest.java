@@ -117,6 +117,25 @@ class ClienteSecurityWebTest {
         verifyNoInteractions(clienteService);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"number", "duplicate", "missing", "outdated"})
+    void malformedOrOutdatedRolesAreRejected(String scenario) throws Exception {
+        var builder = io.jsonwebtoken.Jwts.builder().subject("client")
+                .expiration(java.util.Date.from(java.time.Instant.now().plusSeconds(60)));
+        switch (scenario) {
+            case "number" -> builder.claim("roles", java.util.List.of(7));
+            case "duplicate" -> builder.claim("roles", java.util.List.of("ROLE_CLIENT", "ROLE_CLIENT"));
+            case "outdated" -> builder.claim("roles", java.util.List.of("ROLE_ADMIN"));
+            default -> { }
+        }
+        var key = io.jsonwebtoken.security.Keys.hmacShaKeyFor(io.jsonwebtoken.io.Decoders.BASE64.decode(
+                "U2VydmljZUh1Yl9kZXZfb25seV9rZXlfMzJfYnl0ZXNfbWluaW11bQ=="));
+        String token = builder.signWith(key).compact();
+        mockMvc.perform(get("/api/v1/clientes").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        verifyNoInteractions(clienteService);
+    }
+
     private String bearerToken(String username, String role) {
         var user = User.withUsername(username)
                 .password("unused-in-this-test")

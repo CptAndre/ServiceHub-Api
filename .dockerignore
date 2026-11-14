@@ -1,8 +1,9 @@
 .git
 .idea
 .vscode
-target
 build
 .env
 .env.*
 *.log
+target/*
+!target/servicehub-api.jar

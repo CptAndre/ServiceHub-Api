@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 public class ServicoController {
 
     private final ServicoService servicoService;
@@ -19,21 +20,21 @@ public class ServicoController {
         this.servicoService = servicoService;
     }
 
-    @PostMapping("/api/servicos")
+    @PostMapping({"/api/v1/servicos", "/api/servicos"})
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public ServicoResponseDTO criar(@Valid @RequestBody ServicoRequestDTO request) {
         return servicoService.criar(request);
     }
 
-    @GetMapping("/api/prestadores/{prestadorId}/servicos")
+    @GetMapping({"/api/v1/prestadores/{prestadorId}/servicos", "/api/prestadores/{prestadorId}/servicos"})
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<ServicoResponseDTO> listarPorPrestador(@PathVariable Long prestadorId,
                                                        @RequestParam(defaultValue = "0") int page,
                                                        @RequestParam(defaultValue = "20") int size) {
         return servicoService.listarPorPrestador(prestadorId, Pagination.of(page, size));
     }
-    @DeleteMapping("/api/servicos/{id}")
+    @DeleteMapping({"/api/v1/servicos/{id}", "/api/servicos/{id}"})
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("hasAnyRole('PROVIDER', 'ADMIN')")
     public void desativar(@PathVariable Long id) { servicoService.desativar(id); }

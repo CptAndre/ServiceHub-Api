@@ -3,6 +3,7 @@ import com.example.servicehub_api.dto.*;
 import com.example.servicehub_api.model.*;
 import com.example.servicehub_api.repository.*;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ public class ContratoService {
     private final UsuarioRepository usuarios;
     private final ServicoRepository servicos;
     private final ResourceAccess access;
+    private final ApplicationEventPublisher events;
     public ContratoResponseDTO salvar(ContratoRequestDTO dto) {
         return ContratoResponseDTO.from(criar(dto.getClienteId(), dto.getServicoId(), dto.getDescricaoServico(), dto.getScheduledAt()));
     }
@@ -33,7 +35,9 @@ public class ContratoService {
         contrato.setScheduledAt(scheduledAt);
         contrato.setValorTotal(servico.getPreco());
         contrato.setStatus(RequestStatus.PENDING);
-        return contratos.save(contrato);
+        Contrato saved = contratos.save(contrato);
+        events.publishEvent(new RequestTransitioned(saved.getStatus()));
+        return saved;
     }
     @Transactional(readOnly = true)
     public Page<ContratoResponseDTO> buscarPorCliente(Long id, Pageable pageable) {
@@ -48,7 +52,9 @@ public class ContratoService {
         return contratos.findByServicoPrestadorId(id, pageable).map(ContratoResponseDTO::from);
     }
     public ContratoResponseDTO atualizarStatus(Long id, ContratoStatusRequestDTO dto) {
-        Contrato contrato = encontrar(id);
+        // A leitura do estado e sua alteração precisam ocorrer sob o mesmo bloqueio.
+        Contrato contrato = contratos.findByIdForUpdate(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrato não encontrado"));
         access.requireOwner(contrato.getPrestador().getId());
         RequestStatus next = dto.getStatus();
         boolean allowed = switch (contrato.getStatus()) {
@@ -59,10 +65,8 @@ public class ContratoService {
         };
         if (!allowed) throw new ResponseStatusException(HttpStatus.CONFLICT, "Transição de status inválida");
         contrato.setStatus(next);
-        return ContratoResponseDTO.from(contratos.save(contrato));
-    }
-    @Transactional(readOnly = true)
-    public Contrato encontrar(Long id) {
-        return contratos.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Contrato não encontrado"));
+        Contrato saved = contratos.save(contrato);
+        events.publishEvent(new RequestTransitioned(saved.getStatus()));
+        return ContratoResponseDTO.from(saved);
     }
 }

@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Build and PostgreSQL tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SERVICEHUB_TESTCONTAINERS: 'true'
+      SERVICEHUB_REQUIRE_POSTGRES: 'true'
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Verify all tests with real PostgreSQL
+        run: ./mvnw -B verify
+      - name: Read artifact version
+        id: version
+        run: |
+          version=$(python3 -c 'import xml.etree.ElementTree as e; print(e.parse("pom.xml").getroot().find("{http://maven.apache.org/POM/4.0.0}version").text)')
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+      - name: Save the verified JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: servicehub-jar-${{ github.sha }}
+          path: target/servicehub-api.jar
+          if-no-files-found: error
+          retention-days: 7
+      - name: Save test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ github.sha }}
+          path: target/surefire-reports/
+          if-no-files-found: warn
+          retention-days: 7
+
+  container-check:
+    name: Docker image and healthy stack
+    needs: build-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DB_NAME: servicehub_ci
+      DB_USERNAME: servicehub_ci
+      API_PORT: '18080'
+      POSTGRES_PORT: '55435'
+      APP_VERSION: ${{ needs.build-test.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: servicehub-jar-${{ github.sha }}
+          path: target
+      - name: Generate disposable runtime credentials
+        run: |
+          password=$(openssl rand -hex 24)
+          key=$(openssl rand -base64 32)
+          echo "::add-mask::$password"
+          echo "::add-mask::$key"
+          echo "DB_PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "JWT_SECRET=$key" >> "$GITHUB_ENV"
+          echo "API_IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA" >> "$GITHUB_ENV"
+      - name: Package the verified JAR without recompiling it
+        run: |
+          docker build --build-arg JAR_SOURCE=prebuilt \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$APP_VERSION" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --tag "$API_IMAGE" .
+      - name: Wait for the API and PostgreSQL to become healthy
+        run: docker compose -p servicehub-ci -f docker-compose.yml -f docker-compose.ci.yml up --no-build --wait --wait-timeout 180
+      - name: Exercise the actual running image
+        run: python3 scripts/smoke_test.py --base-url http://127.0.0.1:18080 --expected-version "$APP_VERSION" --write
+      - name: Save the exact tested image
+        run: docker save "$API_IMAGE" | gzip > servicehub-image.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: servicehub-image-${{ github.sha }}
+          path: servicehub-image.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+      - name: Show stack logs on failure
+        if: failure()
+        run: docker compose -p servicehub-ci -f docker-compose.yml -f docker-compose.ci.yml logs --no-color
+      - name: Remove only the disposable CI environment
+        if: always()
+        run: docker compose -p servicehub-ci -f docker-compose.yml -f docker-compose.ci.yml down --volumes --remove-orphans
+
+  publish-image:
+    name: Publish the tested image
+    needs: container-check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: servicehub-image-${{ github.sha }}
+      - name: Load and publish without rebuilding
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}:$GITHUB_SHA"
+          gzip -dc servicehub-image.tar.gz | docker load
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$image"
+          reference=$(docker image inspect --format '{{index .RepoDigests 0}}' "$image")
+          echo "### Imagem validada" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$image\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$reference\`" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Promova esta imagem no Render; não reconstrua por ambiente.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove registry credentials from the runner
+        if: always()
+        run: docker logout ghcr.io

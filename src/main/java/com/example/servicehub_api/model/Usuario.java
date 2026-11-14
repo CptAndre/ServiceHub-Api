@@ -13,9 +13,9 @@ public class Usuario {
     private Long id;
     @Column(name = "full_name", nullable = false, length = 100)
     private String nome;
-    @Column(nullable = false, unique = true, length = 255)
+    @Column(nullable = false, unique = true)
     private String email;
-    @JsonIgnore @Column(name = "password_hash", nullable = false, length = 255)
+    @JsonIgnore @Column(name = "password_hash", nullable = false)
     private String passwordHash;
     @Enumerated(EnumType.STRING) @Column(name = "role", nullable = false, length = 20)
     private UserRole papel = UserRole.CLIENT;

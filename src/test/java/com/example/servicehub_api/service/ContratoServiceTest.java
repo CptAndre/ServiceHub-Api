@@ -12,7 +12,8 @@ class ContratoServiceTest {
     private final UsuarioRepository usuarios = mock(UsuarioRepository.class);
     private final ServicoRepository servicos = mock(ServicoRepository.class);
     private final ResourceAccess access = mock(ResourceAccess.class);
-    private final ContratoService service = new ContratoService(contratos, usuarios, servicos, access);
+    private final ContratoService service = new ContratoService(contratos, usuarios, servicos, access,
+            mock(org.springframework.context.ApplicationEventPublisher.class));
     @Test void reservaCopiaPrecoSemRecodificarTexto() {
         Usuario client = new Usuario(); client.setId(6L);
         Usuario provider = new Usuario(); provider.setId(1L); provider.setPapel(UserRole.PROVIDER);
@@ -37,7 +38,7 @@ class ContratoServiceTest {
         Usuario provider = new Usuario(); provider.setId(1L);
         Servico offering = new Servico(); offering.setPrestador(provider);
         Contrato request = new Contrato(); request.setServico(offering); request.setStatus(RequestStatus.COMPLETED);
-        when(contratos.findById(1L)).thenReturn(Optional.of(request));
+        when(contratos.findByIdForUpdate(1L)).thenReturn(Optional.of(request));
         ContratoStatusRequestDTO dto = new ContratoStatusRequestDTO(); dto.setStatus(RequestStatus.PENDING);
         var error = assertThrows(org.springframework.web.server.ResponseStatusException.class, () -> service.atualizarStatus(1L, dto));
         assertEquals(409, error.getStatusCode().value()); verify(contratos, never()).save(any());

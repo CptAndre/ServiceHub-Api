@@ -3,6 +3,7 @@ package com.example.servicehub_api.config;
 import java.io.IOException;
 
 import jakarta.servlet.FilterChain;
+import org.jspecify.annotations.NonNull;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -22,10 +23,10 @@ public class PayloadSizeFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response,
+                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
         if (request.getContentLengthLong() > maxPayloadBytes) {
-            response.setStatus(HttpStatus.PAYLOAD_TOO_LARGE.value());
+            response.setStatus(HttpStatus.CONTENT_TOO_LARGE.value());
             response.setContentType(MediaType.APPLICATION_JSON_VALUE);
             response.getWriter().write("{\"status\":413,\"erro\":\"Payload muito grande\","
                     + "\"mensagens\":[\"O tamanho máximo permitido foi excedido\"]}");

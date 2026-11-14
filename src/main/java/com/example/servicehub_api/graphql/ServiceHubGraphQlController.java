@@ -4,11 +4,9 @@ import com.example.servicehub_api.dto.ContratoResponseDTO;
 import com.example.servicehub_api.dto.PrestadorResponseDTO;
 import com.example.servicehub_api.dto.ServicoRequestDTO;
 import com.example.servicehub_api.dto.ServicoResponseDTO;
-import com.example.servicehub_api.model.Usuario;
-import com.example.servicehub_api.model.UserRole;
 import com.example.servicehub_api.model.ServiceCategory;
-import com.example.servicehub_api.repository.UsuarioRepository;
 import com.example.servicehub_api.service.ContratoService;
+import com.example.servicehub_api.service.PrestadorService;
 import com.example.servicehub_api.service.ServicoService;
 import com.example.servicehub_api.util.Pagination;
 import jakarta.validation.ConstraintViolation;
@@ -16,16 +14,13 @@ import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.Validator;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -36,16 +31,16 @@ import jakarta.validation.constraints.Positive;
 @Controller
 public class ServiceHubGraphQlController {
 
-    private final UsuarioRepository prestadorRepository;
+    private final PrestadorService prestadorService;
     private final ContratoService contratoService;
     private final ServicoService servicoService;
     private final Validator validator;
 
-    public ServiceHubGraphQlController(UsuarioRepository prestadorRepository,
+    public ServiceHubGraphQlController(PrestadorService prestadorService,
                                        ContratoService contratoService,
                                        ServicoService servicoService,
                                        Validator validator) {
-        this.prestadorRepository = prestadorRepository;
+        this.prestadorService = prestadorService;
         this.contratoService = contratoService;
         this.servicoService = servicoService;
         this.validator = validator;
@@ -54,10 +49,7 @@ public class ServiceHubGraphQlController {
     @QueryMapping
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public GraphQlProvider provider(@Argument Long id) {
-        Usuario prestador = prestadorRepository.findById(id).filter(u -> u.getPapel() == UserRole.PROVIDER && u.isAtivo())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "Prestador não encontrado com o ID: " + id));
-        return GraphQlProvider.from(PrestadorResponseDTO.from(prestador));
+        return GraphQlProvider.from(prestadorService.buscarPorId(id));
     }
 
     @QueryMapping
@@ -66,11 +58,7 @@ public class ServiceHubGraphQlController {
                                           @Argument Integer page,
                                           @Argument Integer size) {
         Pageable pageable = Pagination.of(page == null ? 0 : page, size == null ? 20 : size);
-        Page<Usuario> results = specialty == null || specialty.isBlank()
-                ? prestadorRepository.findByPapelAndAtivoTrue(UserRole.PROVIDER, pageable)
-                : prestadorRepository.findByPapelAndAtivoTrueAndBioContainingIgnoreCase(UserRole.PROVIDER, specialty.trim(), pageable);
-        return results.getContent().stream()
-                .map(PrestadorResponseDTO::from)
+        return prestadorService.buscarTodos(specialty, pageable).getContent().stream()
                 .map(GraphQlProvider::from)
                 .toList();
     }

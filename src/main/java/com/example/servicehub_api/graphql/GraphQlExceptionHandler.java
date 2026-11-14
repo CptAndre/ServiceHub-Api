@@ -1,5 +1,7 @@
 package com.example.servicehub_api.graphql;
 import graphql.GraphQLError;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import graphql.GraphqlErrorBuilder;
 import graphql.schema.DataFetchingEnvironment;
 import jakarta.validation.ConstraintViolationException;
@@ -10,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Component
 public class GraphQlExceptionHandler extends DataFetcherExceptionResolverAdapter {
     @Override
-    protected GraphQLError resolveToSingleError(Throwable error, DataFetchingEnvironment environment) {
+    protected @Nullable GraphQLError resolveToSingleError(@NonNull Throwable error, @NonNull DataFetchingEnvironment environment) {
         if (error instanceof ResponseStatusException ex) {
             ErrorType type = switch (ex.getStatusCode().value()) {
                 case 400, 409 -> ErrorType.BAD_REQUEST;

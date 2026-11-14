@@ -11,6 +11,8 @@ import com.example.servicehub_api.service.JwtService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,7 +25,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping({"/api/v1/auth", "/api/auth"})
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
@@ -50,11 +52,13 @@ public class AuthController {
         try {
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.username(), request.password()));
+            if (!(authentication.getPrincipal() instanceof UserDetails user)) {
+                throw new BadCredentialsException("Principal de autenticação inválido");
+            }
             List<String> roles = authentication.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)
                     .toList();
-            String token = jwtService.generateToken((org.springframework.security.core.userdetails.UserDetails)
-                    authentication.getPrincipal());
+            String token = jwtService.generateToken(user);
             return new LoginResponseDTO(token, "Bearer", jwtService.getExpirationSeconds(), roles);
         } catch (org.springframework.security.core.AuthenticationException ex) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Usuário ou senha inválidos.");

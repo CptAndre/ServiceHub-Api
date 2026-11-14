@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 public class PagamentoController {
 
     private final PagamentoService pagamentoService;
@@ -19,14 +20,14 @@ public class PagamentoController {
         this.pagamentoService = pagamentoService;
     }
 
-    @PostMapping("/api/pagamentos")
+    @PostMapping({"/api/v1/pagamentos", "/api/pagamentos"})
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public PagamentoResponseDTO criar(@Valid @RequestBody PagamentoRequestDTO dto) {
         return pagamentoService.salvar(dto);
     }
 
-    @GetMapping("/api/contratos/{contratoId}/pagamentos")
+    @GetMapping({"/api/v1/contratos/{contratoId}/pagamentos", "/api/contratos/{contratoId}/pagamentos"})
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<PagamentoResponseDTO> listarPorContrato(@PathVariable Long contratoId,
                                                          @RequestParam(defaultValue = "0") int page,

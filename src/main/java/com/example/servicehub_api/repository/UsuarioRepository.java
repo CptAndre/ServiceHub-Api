@@ -7,7 +7,6 @@ import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
-    boolean existsByEmail(String email);
     boolean existsByPapel(UserRole papel);
     Page<Usuario> findByPapelAndAtivoTrue(UserRole papel, Pageable pageable);
     Page<Usuario> findByPapelAndAtivoTrueAndBioContainingIgnoreCase(UserRole papel, String bio, Pageable pageable);

@@ -1,0 +1,8 @@
+# CI uses a disposable PostgreSQL 16; local persistent volumes remain on version 15.
+services:
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CORS_ALLOWED_ORIGINS: https://ci.servicehub.invalid
+  postgres:
+    image: postgres:16-alpine

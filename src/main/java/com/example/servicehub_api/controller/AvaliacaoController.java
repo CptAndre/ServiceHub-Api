@@ -11,6 +11,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
 public class AvaliacaoController {
 
     private final AvaliacaoService avaliacaoService;
@@ -19,14 +20,14 @@ public class AvaliacaoController {
         this.avaliacaoService = avaliacaoService;
     }
 
-    @PostMapping("/api/avaliacoes")
+    @PostMapping({"/api/v1/avaliacoes", "/api/avaliacoes"})
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("hasAnyRole('CLIENT', 'ADMIN')")
     public AvaliacaoResponseDTO criar(@Valid @RequestBody AvaliacaoRequestDTO dto) {
         return avaliacaoService.salvar(dto);
     }
 
-    @GetMapping("/api/prestadores/{prestadorId}/avaliacoes")
+    @GetMapping({"/api/v1/prestadores/{prestadorId}/avaliacoes", "/api/prestadores/{prestadorId}/avaliacoes"})
     @PreAuthorize("hasAnyRole('CLIENT', 'PROVIDER', 'ADMIN')")
     public Page<AvaliacaoResponseDTO> listarPorPrestador(@PathVariable Long prestadorId,
                                                           @RequestParam(defaultValue = "0") int page,

@@ -11,7 +11,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/prestadores")
+@io.swagger.v3.oas.annotations.security.SecurityRequirement(name = "bearerAuth")
+@RequestMapping({"/api/v1/prestadores", "/api/prestadores"})
 public class PrestadorController {
 
     private final PrestadorService prestadorService;

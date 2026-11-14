@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.jspecify.annotations.NonNull;
 import java.util.Locale;
 @Component
 public class AdminBootstrap implements ApplicationRunner {
@@ -22,7 +23,7 @@ public class AdminBootstrap implements ApplicationRunner {
         this.usuarios = usuarios;
         this.accounts = accounts;
     }
-    @Override public void run(ApplicationArguments args) {
+    @Override public void run(@NonNull ApplicationArguments args) {
         if (email.isBlank()) return;
         var existing = usuarios.findByEmail(email);
         if (existing.isPresent()) {

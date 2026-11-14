@@ -2,17 +2,19 @@ package com.example.servicehub_api;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+import org.junit.jupiter.api.condition.EnabledIf;
 import java.nio.charset.StandardCharsets;
 import java.sql.*;
 import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-@EnabledIfEnvironmentVariable(named = "SERVICEHUB_TEST_DB_URL", matches = ".+")
+@EnabledIf("com.example.servicehub_api.PostgresTestDatabase#isEnabled")
+// Flyway creates isolated schemas at runtime, including the legacy V8 tables.
+@SuppressWarnings("SqlResolve")
 class ReferenceSchemaPostgresTest {
-    private final String url = System.getenv("SERVICEHUB_TEST_DB_URL");
-    private final String user = System.getenv().getOrDefault("SERVICEHUB_TEST_DB_USER", "servicehub_test");
-    private final String password = System.getenv().getOrDefault("SERVICEHUB_TEST_DB_PASSWORD", "");
+    private final String url = PostgresTestDatabase.url();
+    private final String user = PostgresTestDatabase.username();
+    private final String password = PostgresTestDatabase.password();
     private Flyway flyway(String schema, String target) {
         return Flyway.configure().dataSource(url, user, password).schemas(schema).defaultSchema(schema).target(target).load();
     }

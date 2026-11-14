@@ -1,0 +1,43 @@
+# Template only. Review the plan and replace the image reference before creating resources.
+# Select the image that passed CI; never use latest for a release.
+services:
+  - type: web
+    name: servicehub-api
+    runtime: image
+    plan: free
+    region: oregon
+    image:
+      url: ghcr.io/cptandre/servicehub-api:REPLACE_WITH_VERIFIED_COMMIT_SHA
+    healthCheckPath: /actuator/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: SERVER_PORT
+        value: '10000'
+      - key: DB_URL
+        sync: false
+      - key: DB_USER
+        fromDatabase:
+          name: servicehub-db
+          property: user
+      - key: DB_PASS
+        fromDatabase:
+          name: servicehub-db
+          property: password
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SERVICEHUB_ADMIN_EMAIL
+        sync: false
+      - key: SERVICEHUB_ADMIN_PASSWORD
+        sync: false
+
+databases:
+  - name: servicehub-db
+    databaseName: servicehub
+    user: servicehub
+    plan: free
+    region: oregon
+    postgresMajorVersion: '16'
+    ipAllowList: []
